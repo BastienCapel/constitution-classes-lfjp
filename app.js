@@ -95,6 +95,7 @@ function doPost(e) {
 
 // --- Application State ---
 const state = {
+  isAdmin: sessionStorage.getItem('lfjp_is_admin') === 'true',
   students: [],          // Parsed student list
   requests: [],          // Existing requests fetched from Sheets
   selectedIds: new Set(),// Currently selected student IDs
@@ -183,6 +184,17 @@ const DOM = {
   closeImportModalBtn: document.getElementById('close-import-modal-btn'),
   closeImportBtnFooter: document.getElementById('close-import-btn-footer'),
   
+  // Admin Login
+  adminLoginBtn: document.getElementById('admin-login-btn'),
+  loginModal: document.getElementById('login-modal'),
+  loginForm: document.getElementById('login-form'),
+  loginUsername: document.getElementById('login-username'),
+  loginPassword: document.getElementById('login-password'),
+  loginErrorMsg: document.getElementById('login-error-msg'),
+  closeLoginModalBtn: document.getElementById('close-login-modal-btn'),
+  cancelLoginBtn: document.getElementById('cancel-login-btn'),
+  tabBtnSettings: document.getElementById('tab-btn-settings'),
+  
   toastContainer: document.getElementById('toast-container')
 };
 
@@ -220,6 +232,56 @@ function showToast(message, type = 'info', duration = 4000) {
       setTimeout(() => toast.remove(), 300);
     }
   }, duration);
+}
+
+/**
+ * Update Admin Interface layout depending on admin authentication status
+ */
+function updateAdminUI() {
+  if (state.isAdmin) {
+    DOM.tabBtnSettings.removeAttribute('hidden');
+    DOM.adminLoginBtn.innerHTML = "🚪 Déconnexion Admin";
+    DOM.adminLoginBtn.className = "btn btn-danger btn-small";
+  } else {
+    DOM.tabBtnSettings.setAttribute('hidden', '');
+    DOM.adminLoginBtn.innerHTML = "🔑 Connexion Admin";
+    DOM.adminLoginBtn.className = "btn btn-secondary btn-small";
+    
+    // If we are currently on the settings tab, auto-switch to students tab
+    if (state.activeTab === 'settings') {
+      switchTab('students');
+    }
+  }
+}
+
+/**
+ * Handle Admin Authentication
+ */
+function loginAdmin(username, password) {
+  if (username === 'admin' && password === 'admin') {
+    state.isAdmin = true;
+    sessionStorage.setItem('lfjp_is_admin', 'true');
+    DOM.loginErrorMsg.setAttribute('hidden', '');
+    DOM.loginModal.close();
+    updateAdminUI();
+    showToast("Connexion administrateur réussie !", "success");
+    
+    // Auto switch to settings tab to let them see it
+    switchTab('settings');
+  } else {
+    DOM.loginErrorMsg.removeAttribute('hidden');
+    showToast("Identifiants incorrects.", "error");
+  }
+}
+
+/**
+ * Log out Admin
+ */
+function logoutAdmin() {
+  state.isAdmin = false;
+  sessionStorage.removeItem('lfjp_is_admin');
+  updateAdminUI();
+  showToast("Déconnexion réussie.", "info");
 }
 
 /**
@@ -1195,6 +1257,43 @@ function bindFormSubmissions() {
       showToast("Base de données locale réinitialisée.", "info");
     }
   });
+
+  // Admin Login Event Bindings
+  DOM.adminLoginBtn.addEventListener('click', () => {
+    if (state.isAdmin) {
+      if (confirm("Voulez-vous vous déconnecter du mode administrateur ?")) {
+        logoutAdmin();
+      }
+    } else {
+      DOM.loginUsername.value = '';
+      DOM.loginPassword.value = '';
+      DOM.loginErrorMsg.setAttribute('hidden', '');
+      DOM.loginModal.showModal();
+    }
+  });
+
+  DOM.closeLoginModalBtn.addEventListener('click', () => DOM.loginModal.close());
+  DOM.cancelLoginBtn.addEventListener('click', () => DOM.loginModal.close());
+  
+  DOM.loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = DOM.loginUsername.value.trim();
+    const password = DOM.loginPassword.value;
+    loginAdmin(username, password);
+  });
+  
+  // Fallback for <dialog> light dismiss in Safari for login modal
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    DOM.loginModal.addEventListener('click', (event) => {
+      if (event.target !== DOM.loginModal) return;
+      const rect = DOM.loginModal.getBoundingClientRect();
+      const isInside = (
+        rect.top <= event.clientY && event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX && event.clientX <= rect.left + rect.width
+      );
+      if (!isInside) DOM.loginModal.close();
+    });
+  }
 }
 
 /**
@@ -1283,6 +1382,7 @@ function bindDragAndDropCSV() {
 document.addEventListener('DOMContentLoaded', () => {
   Storage.load();
   initTheme();
+  updateAdminUI();
   bindNavigation();
   renderLevelChips();
   bindStudentsEvents();
