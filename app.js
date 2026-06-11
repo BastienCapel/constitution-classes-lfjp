@@ -95,7 +95,8 @@ function doPost(e) {
 
 // --- Application State ---
 const state = {
-  isAdmin: sessionStorage.getItem('lfjp_is_admin') === 'true',
+  role: sessionStorage.getItem('lfjp_role') || null, // 'prof', 'admin', or null
+  get isAdmin() { return this.role === 'admin'; },
   students: [],          // Parsed student list
   requests: [],          // Existing requests fetched from Sheets
   selectedIds: new Set(),// Currently selected student IDs
@@ -184,15 +185,14 @@ const DOM = {
   closeImportModalBtn: document.getElementById('close-import-modal-btn'),
   closeImportBtnFooter: document.getElementById('close-import-btn-footer'),
   
-  // Admin Login
-  adminLoginBtn: document.getElementById('admin-login-btn'),
-  loginModal: document.getElementById('login-modal'),
-  loginForm: document.getElementById('login-form'),
-  loginUsername: document.getElementById('login-username'),
-  loginPassword: document.getElementById('login-password'),
-  loginErrorMsg: document.getElementById('login-error-msg'),
-  closeLoginModalBtn: document.getElementById('close-login-modal-btn'),
-  cancelLoginBtn: document.getElementById('cancel-login-btn'),
+  // Authentication & Portal
+  appContainer: document.getElementById('app-container'),
+  loginPortal: document.getElementById('login-portal'),
+  portalLoginForm: document.getElementById('portal-login-form'),
+  portalUsername: document.getElementById('portal-username'),
+  portalPassword: document.getElementById('portal-password'),
+  portalLoginError: document.getElementById('portal-login-error'),
+  adminLoginBtn: document.getElementById('admin-login-btn'), // Used as general logout button now
   tabBtnSettings: document.getElementById('tab-btn-settings'),
   
   toastContainer: document.getElementById('toast-container')
@@ -235,52 +235,81 @@ function showToast(message, type = 'info', duration = 4000) {
 }
 
 /**
- * Update Admin Interface layout depending on admin authentication status
+ * Update Authentication and Authorization UI layout depending on state.role
  */
-function updateAdminUI() {
-  if (state.isAdmin) {
-    DOM.tabBtnSettings.removeAttribute('hidden');
-    DOM.adminLoginBtn.innerHTML = "🚪 Déconnexion Admin";
-    DOM.adminLoginBtn.className = "btn btn-danger btn-small";
-  } else {
-    DOM.tabBtnSettings.setAttribute('hidden', '');
-    DOM.adminLoginBtn.innerHTML = "🔑 Connexion Admin";
-    DOM.adminLoginBtn.className = "btn btn-secondary btn-small";
+function updateAuthUI() {
+  const role = state.role;
+  
+  if (!role) {
+    // Show login portal, hide app
+    DOM.loginPortal.removeAttribute('hidden');
+    DOM.appContainer.setAttribute('hidden', '');
     
-    // If we are currently on the settings tab, auto-switch to students tab
-    if (state.activeTab === 'settings') {
-      switchTab('students');
+    // Reset inputs
+    DOM.portalUsername.value = '';
+    DOM.portalPassword.value = '';
+    DOM.portalLoginError.setAttribute('hidden', '');
+  } else {
+    // Hide login portal, show app
+    DOM.loginPortal.setAttribute('hidden', '');
+    DOM.appContainer.removeAttribute('hidden');
+    
+    // Clear/set styling class for role-based display
+    if (role === 'admin') {
+      DOM.appContainer.className = 'role-admin';
+      DOM.tabBtnSettings.removeAttribute('hidden');
+      DOM.adminLoginBtn.innerHTML = "🚪 Déconnexion (Admin)";
+      DOM.adminLoginBtn.className = "btn btn-danger btn-small";
+    } else {
+      DOM.appContainer.className = 'role-prof';
+      DOM.tabBtnSettings.setAttribute('hidden', '');
+      DOM.adminLoginBtn.innerHTML = "🚪 Déconnexion (Prof)";
+      DOM.adminLoginBtn.className = "btn btn-secondary btn-small";
+      
+      // If we are currently on the settings tab, auto-switch to students tab
+      if (state.activeTab === 'settings') {
+        switchTab('students');
+      }
     }
   }
 }
 
 /**
- * Handle Admin Authentication
+ * Handle user authentication
  */
-function loginAdmin(username, password) {
-  if (username === 'admin' && password === 'admin') {
-    state.isAdmin = true;
-    sessionStorage.setItem('lfjp_is_admin', 'true');
-    DOM.loginErrorMsg.setAttribute('hidden', '');
-    DOM.loginModal.close();
-    updateAdminUI();
-    showToast("Connexion administrateur réussie !", "success");
+function loginUser(username, password) {
+  let matchedRole = null;
+  
+  if (username === 'prof' && password === 'prof') {
+    matchedRole = 'prof';
+  } else if (username === 'admin' && password === 'admin') {
+    matchedRole = 'admin';
+  }
+  
+  if (matchedRole) {
+    state.role = matchedRole;
+    sessionStorage.setItem('lfjp_role', matchedRole);
+    DOM.portalLoginError.setAttribute('hidden', '');
+    updateAuthUI();
+    showToast(`Connexion réussie (${matchedRole}) !`, "success");
     
-    // Auto switch to settings tab to let them see it
-    switchTab('settings');
+    // Sync data since we are now authorized
+    if (state.settings.sheetUrl) {
+      fetchExistingRequests();
+    }
   } else {
-    DOM.loginErrorMsg.removeAttribute('hidden');
-    showToast("Identifiants incorrects.", "error");
+    DOM.portalLoginError.removeAttribute('hidden');
+    showToast("Identifiant ou mot de passe incorrect.", "error");
   }
 }
 
 /**
- * Log out Admin
+ * Log out user
  */
-function logoutAdmin() {
-  state.isAdmin = false;
-  sessionStorage.removeItem('lfjp_is_admin');
-  updateAdminUI();
+function logoutUser() {
+  state.role = null;
+  sessionStorage.removeItem('lfjp_role');
+  updateAuthUI();
   showToast("Déconnexion réussie.", "info");
 }
 
@@ -865,6 +894,9 @@ function renderRequestsUI() {
   
   // Filtered requests list
   const filtered = state.requests.filter(req => {
+    // Completely hide cancelled requests from the table
+    if (req.status.toLowerCase() === 'annulé') return false;
+
     const matchesLevel = levelVal === 'all' || req.niveau === levelVal;
     const matchesType = typeVal === 'all' || req.type === typeVal;
     
@@ -940,7 +972,7 @@ function renderRequestsUI() {
       <td><strong>${req.author}</strong></td>
       <td><div style="max-width: 250px; font-size:0.82rem; line-height: 1.4;">${req.motif}</div></td>
       <td><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
-      <td>${cancelActionHTML}</td>
+      <td class="col-action">${cancelActionHTML}</td>
     `;
     
     // Bind cancellation click handler
@@ -1258,42 +1290,21 @@ function bindFormSubmissions() {
     }
   });
 
-  // Admin Login Event Bindings
+  // Connection Portal and Logout Events
   DOM.adminLoginBtn.addEventListener('click', () => {
-    if (state.isAdmin) {
-      if (confirm("Voulez-vous vous déconnecter du mode administrateur ?")) {
-        logoutAdmin();
+    if (state.role) {
+      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+        logoutUser();
       }
-    } else {
-      DOM.loginUsername.value = '';
-      DOM.loginPassword.value = '';
-      DOM.loginErrorMsg.setAttribute('hidden', '');
-      DOM.loginModal.showModal();
     }
   });
 
-  DOM.closeLoginModalBtn.addEventListener('click', () => DOM.loginModal.close());
-  DOM.cancelLoginBtn.addEventListener('click', () => DOM.loginModal.close());
-  
-  DOM.loginForm.addEventListener('submit', (e) => {
+  DOM.portalLoginForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const username = DOM.loginUsername.value.trim();
-    const password = DOM.loginPassword.value;
-    loginAdmin(username, password);
+    const username = DOM.portalUsername.value.trim();
+    const password = DOM.portalPassword.value;
+    loginUser(username, password);
   });
-  
-  // Fallback for <dialog> light dismiss in Safari for login modal
-  if (!('closedBy' in HTMLDialogElement.prototype)) {
-    DOM.loginModal.addEventListener('click', (event) => {
-      if (event.target !== DOM.loginModal) return;
-      const rect = DOM.loginModal.getBoundingClientRect();
-      const isInside = (
-        rect.top <= event.clientY && event.clientY <= rect.top + rect.height &&
-        rect.left <= event.clientX && event.clientX <= rect.left + rect.width
-      );
-      if (!isInside) DOM.loginModal.close();
-    });
-  }
 }
 
 /**
@@ -1382,7 +1393,7 @@ function bindDragAndDropCSV() {
 document.addEventListener('DOMContentLoaded', () => {
   Storage.load();
   initTheme();
-  updateAdminUI();
+  updateAuthUI();
   bindNavigation();
   renderLevelChips();
   bindStudentsEvents();
@@ -1397,8 +1408,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Render students list
   renderStudentsGrid();
   
-  // Auto-connect to Sheets if URLs are saved
-  if (state.settings.sheetUrl) {
+  // Auto-connect to Sheets if URLs are saved and authorized
+  if (state.role && state.settings.sheetUrl) {
     fetchExistingRequests();
   }
   

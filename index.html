@@ -15,6 +15,35 @@
 </head>
 <body class="theme-system">
 
+  <!-- Login Portal Section -->
+  <div id="login-portal" class="login-portal">
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="login-emoji">🎒</span>
+        <h2>LFJP Classes</h2>
+        <p class="login-subtitle">Rentrée 2026/2027 — Secondaire</p>
+      </div>
+      <form id="portal-login-form">
+        <div class="form-group">
+          <label for="portal-username">Identifiant</label>
+          <input type="text" id="portal-username" class="form-control" autocomplete="username" required placeholder="Saisissez votre identifiant">
+        </div>
+        <div class="form-group">
+          <label for="portal-password">Mot de passe</label>
+          <input type="password" id="portal-password" class="form-control" autocomplete="current-password" required placeholder="Saisissez votre mot de passe">
+        </div>
+        <div id="portal-login-error" class="connection-status-box error" hidden>
+          Identifiant ou mot de passe incorrect.
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="portal-login-btn">
+          Se connecter
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app-container" hidden>
+
   <!-- Header Section -->
   <header class="app-header">
     <div class="header-container">
@@ -191,7 +220,7 @@
                 <th>Auteur</th>
                 <th>Motif pédagogique</th>
                 <th>Statut</th>
-                <th>Action</th>
+                <th class="col-action">Action</th>
               </tr>
             </thead>
             <tbody id="requests-table-body">
@@ -411,34 +440,7 @@
     </div>
   </dialog>
 
-  <!-- NATIVE MODAL: ADMIN LOGIN -->
-  <dialog id="login-modal" closedby="any" aria-labelledby="login-modal-title">
-    <div class="modal-content" style="max-width: 400px; margin: auto;">
-      <div class="modal-header">
-        <h2 id="login-modal-title">Connexion Administrateur</h2>
-        <button class="close-modal-btn" id="close-login-modal-btn" aria-label="Fermer">✕</button>
-      </div>
-      <form id="login-form" method="dialog">
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="login-username">Identifiant</label>
-            <input type="text" id="login-username" class="form-control" placeholder="admin" required>
-          </div>
-          <div class="form-group">
-            <label for="login-password">Mot de passe</label>
-            <input type="password" id="login-password" class="form-control" placeholder="•••••" required>
-          </div>
-          <div id="login-error-msg" class="connection-status-box error" style="margin-top: 10px; padding: 8px 12px;" hidden>
-            Identifiant ou mot de passe incorrect.
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="cancel-login-btn">Annuler</button>
-          <button type="submit" class="btn btn-primary" id="submit-login-btn">Se connecter</button>
-        </div>
-      </form>
-    </div>
-  </dialog>
+  </div>
 
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container"></div>
