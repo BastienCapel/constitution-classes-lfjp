@@ -460,8 +460,7 @@ function renderStudentsGrid() {
         </div>
       </div>
       <div class="student-info-main">
-        <span class="student-id">${student.id}</span>
-        <h4 class="student-name">${student.name}</h4>
+        <h4 class="student-name" style="margin-top: 0;">${student.name}</h4>
         <div class="student-badges">
           <span class="badge badge-level">${student.level}</span>
         </div>
