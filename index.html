@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LFJP - Constitution des Classes 2026/2027</title>
+  <!-- Google Fonts - Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- Favicon -->
+  <link rel="shortcut icon" href="https://ssl.gstatic.com/docs/spreadsheets/spreadsheets-2026-v2.ico">
+</head>
+<body class="theme-system">
+
+  <!-- Header Section -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo-area">
+        <span class="logo-emoji">🎒</span>
+        <div class="logo-text">
+          <h1>LFJP Classes</h1>
+          <p class="subtitle">Rentrée 2026/2027 — Secondaire</p>
+        </div>
+      </div>
+      
+      <!-- Main Navigation Tabs -->
+      <nav class="app-nav">
+        <button class="nav-tab active" data-tab="students" id="tab-btn-students">
+          <span class="tab-icon">👥</span> Élèves
+        </button>
+        <button class="nav-tab" data-tab="requests" id="tab-btn-requests">
+          <span class="tab-icon">📋</span> Vœux Enregistrés
+        </button>
+        <button class="nav-tab" data-tab="settings" id="tab-btn-settings">
+          <span class="tab-icon">⚙️</span> Configuration
+        </button>
+      </nav>
+
+      <!-- Utilities (Theme & Status) -->
+      <div class="header-utils">
+        <div class="connection-pill offline" id="global-connection-pill">
+          <span class="pill-dot"></span>
+          <span class="pill-text">Google Sheets non configuré</span>
+        </div>
+        <button class="theme-toggle-btn" id="theme-toggle-btn" title="Changer de thème" aria-label="Toggle theme">
+          <span class="theme-icon-light">☀️</span>
+          <span class="theme-icon-dark">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-main">
+
+    <!-- TAB: STUDENTS -->
+    <section class="tab-content active" id="tab-students" aria-labelledby="tab-btn-students">
+      <div class="tab-header-actions">
+        <div class="filters-container">
+          <!-- Text Search -->
+          <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="student-search" placeholder="Rechercher un élève par nom ou dossier..." aria-label="Rechercher un élève">
+            <button id="clear-search-btn" class="clear-input-btn" hidden>✕</button>
+          </div>
+
+          <!-- Grade Level Filter buttons -->
+          <div class="level-filter-bar">
+            <span class="filter-label">Niveau :</span>
+            <div class="level-chips" id="level-chips-container">
+              <button class="level-chip active" data-level="all">Tous</button>
+              <button class="level-chip" data-level="6ème">6ème</button>
+              <button class="level-chip" data-level="5ème">5ème</button>
+              <button class="level-chip" data-level="4ème">4ème</button>
+              <button class="level-chip" data-level="3ème">3ème</button>
+              <button class="level-chip" data-level="2nde">2nde</button>
+              <button class="level-chip" data-level="1ère">1ère</button>
+              <button class="level-chip" data-level="Terminale">Terminale</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions-wrapper">
+          <!-- CSV Import Area -->
+          <button class="btn btn-secondary" id="open-import-modal-btn">
+            <span class="btn-icon">📥</span> Importer CSV Élèves
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty State / Welcome Screen -->
+      <div class="empty-state-card" id="students-empty-state">
+        <div class="empty-state-icon">📥</div>
+        <h2>Aucun élève dans la base de données</h2>
+        <p>Veuillez importer le fichier CSV des élèves pour commencer à effectuer des vœux de regroupement ou d'éloignement.</p>
+        <button class="btn btn-primary" id="empty-state-import-btn">Importer le fichier CSV</button>
+      </div>
+
+      <!-- Students List Container -->
+      <div class="students-section" id="students-section-container" hidden>
+        <div class="students-summary-bar">
+          <span id="students-count-text">0 élèves trouvés</span>
+          <div class="selection-actions">
+            <button class="btn btn-link btn-small" id="select-all-visible-btn">Tout sélectionner</button>
+            <button class="btn btn-link btn-small" id="deselect-all-btn">Tout désélectionner</button>
+          </div>
+        </div>
+        
+        <!-- Grid of students -->
+        <div class="students-grid" id="students-grid"></div>
+      </div>
+    </section>
+
+    <!-- TAB: REQUESTS -->
+    <section class="tab-content" id="tab-requests" aria-labelledby="tab-btn-requests" hidden>
+      <!-- Stats Dashboard -->
+      <div class="stats-dashboard">
+        <div class="stat-card">
+          <span class="stat-label">Total des demandes</span>
+          <span class="stat-value" id="stats-total">0</span>
+        </div>
+        <div class="stat-card together">
+          <span class="stat-label">Regroupements</span>
+          <span class="stat-value" id="stats-together">0</span>
+        </div>
+        <div class="stat-card separate">
+          <span class="stat-label">Éloignements</span>
+          <span class="stat-value" id="stats-separate">0</span>
+        </div>
+      </div>
+
+      <!-- Filters & Sync -->
+      <div class="requests-filter-bar">
+        <div class="filters-container">
+          <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="request-search" placeholder="Rechercher par élève ou auteur..." aria-label="Rechercher une demande">
+          </div>
+          
+          <select id="request-level-filter" class="form-select" aria-label="Filtrer par niveau">
+            <option value="all">Tous les niveaux</option>
+            <option value="6ème">6ème</option>
+            <option value="5ème">5ème</option>
+            <option value="4ème">4ème</option>
+            <option value="3ème">3ème</option>
+            <option value="2nde">2nde</option>
+            <option value="1ère">1ère</option>
+            <option value="Terminale">Terminale</option>
+          </select>
+
+          <select id="request-type-filter" class="form-select" aria-label="Filtrer par type">
+            <option value="all">Tous les types</option>
+            <option value="Regroupement">Regroupements</option>
+            <option value="Éloignement">Éloignements</option>
+          </select>
+        </div>
+
+        <button class="btn btn-secondary" id="sync-requests-btn">
+          <span class="btn-icon">🔄</span> Actualiser
+        </button>
+      </div>
+
+      <!-- Requests List / Table -->
+      <div class="requests-container">
+        <!-- Loader -->
+        <div class="loading-overlay" id="requests-loader" hidden>
+          <div class="spinner"></div>
+          <p>Chargement des demandes depuis Google Sheets...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state-card" id="requests-empty-state">
+          <div class="empty-state-icon">📝</div>
+          <h2>Aucun vœu enregistré</h2>
+          <p>Les vœux que vous créerez s'afficheront ici. Configurez l'intégration Google Sheets pour charger l'historique partagé.</p>
+        </div>
+
+        <!-- Table View -->
+        <div class="table-responsive" id="requests-table-container" hidden>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date / Heure</th>
+                <th>Type</th>
+                <th>Niveau</th>
+                <th>Élèves concernés</th>
+                <th>Auteur</th>
+                <th>Motif pédagogique</th>
+                <th>Statut</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="requests-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: SETTINGS -->
+    <section class="tab-content" id="tab-settings" aria-labelledby="tab-btn-settings" hidden>
+      <div class="settings-grid">
+        
+        <!-- Google Sheets Integration Settings -->
+        <div class="card settings-card">
+          <div class="card-header">
+            <h3>🔗 Connexion Google Sheets</h3>
+          </div>
+          <div class="card-body">
+            <form id="settings-form">
+              <div class="form-group">
+                <label for="input-sheet-url">URL de partage / publication de la Google Sheet</label>
+                <input type="url" id="input-sheet-url" class="form-control" placeholder="https://docs.google.com/spreadsheets/d/.../edit ou pubhtml" required>
+                <small class="form-help">Utilisée pour LIRE les demandes en direct.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="input-script-url">URL de la Web App Google Apps Script</label>
+                <input type="url" id="input-script-url" class="form-control" placeholder="https://script.google.com/macros/s/.../exec" required>
+                <small class="form-help">Utilisée pour ENREGISTRER/ANNULER les demandes.</small>
+              </div>
+
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary" id="save-settings-btn">Sauvegarder la configuration</button>
+                <button type="button" class="btn btn-secondary" id="test-settings-btn">Tester la connexion</button>
+              </div>
+            </form>
+
+            <div class="connection-status-box" id="test-result-box" hidden>
+              <span id="test-result-icon"></span>
+              <span id="test-result-text"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Local Database Administration -->
+        <div class="card settings-card">
+          <div class="card-header">
+            <h3>💾 Base de données locale</h3>
+          </div>
+          <div class="card-body">
+            <p class="db-status-text">
+              Élèves en cache : <strong id="settings-db-count">0</strong>
+            </p>
+            <p class="db-info">
+              Les élèves sont stockés dans le stockage local de votre navigateur (`LocalStorage`). Vous n'avez pas besoin de réimporter le CSV à chaque visite.
+            </p>
+            <div class="settings-actions">
+              <button class="btn btn-danger" id="clear-local-db-btn">🗑️ Effacer la liste des élèves</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Apps Script copy-paste helper -->
+        <div class="card settings-card full-width">
+          <div class="card-header">
+            <h3>📝 Guide de configuration Google Sheets (Apps Script)</h3>
+          </div>
+          <div class="card-body">
+            <ol class="setup-steps">
+              <li>Ouvrez votre fichier Google Sheet : <a href="https://docs.google.com/spreadsheets/d/1nzvI8Rxj4aaumioGHc2wIjjZ1Y2JANsaBvQxVO_aoGk/edit" target="_blank" rel="noopener">Voeux classes 2026 LFJP</a></li>
+              <li>Dans le menu supérieur, allez dans <strong>Extensions</strong> &gt; <strong>Apps Script</strong>.</li>
+              <li>Supprimez le code existant dans l'éditeur (souvent <code>function myFunction() { }</code>).</li>
+              <li>Copiez le code ci-dessous et collez-le dans l'éditeur :
+                <div class="code-box-container">
+                  <button class="btn btn-small btn-secondary copy-code-btn" id="copy-script-code-btn">Copier le code</button>
+                  <pre class="code-block" id="apps-script-code-container">Chargement du code...</pre>
+                </div>
+              </li>
+              <li>Cliquez sur la disquette 💾 (Enregistrer le projet).</li>
+              <li>Cliquez sur le bouton <strong>Déployer</strong> (en haut à droite) &gt; <strong>Nouveau déploiement</strong>.</li>
+              <li>Sélectionnez le type <strong>Application Web</strong> (cliquez sur l'engrenage à côté de "Sélectionner un type").</li>
+              <li>Configurez les options suivantes :
+                <ul>
+                  <li>Description : <code>API Constitution des Classes 2026/2027</code></li>
+                  <li>Exécuter en tant que : <strong>Moi (votre adresse email)</strong></li>
+                  <li>Qui a accès : <strong>Tout le monde</strong> (Anyone) — <em>Note : Cela est requis pour que l'application cliente puisse envoyer des données sans authentification complexe.</em></li>
+                </ul>
+              </li>
+              <li>Cliquez sur <strong>Déployer</strong>. Google vous demandera d'autoriser les accès. Validez-les (cliquez sur "Paramètres avancés" puis sur "Accéder à Projet sans titre (non sécurisé)" puis "Autoriser").</li>
+              <li>Copiez l'<strong>URL de l'application Web</strong> générée (elle se termine par <code>/exec</code>) et collez-la dans le champ ci-dessus.</li>
+              <li>Dans votre Google Sheet, allez dans <strong>Fichier</strong> &gt; <strong>Partager</strong> &gt; <strong>Publier sur le Web</strong>. Sélectionnez la première feuille et publiez-la au format <strong>Page web</strong>. Copiez cette URL de publication (ou simplement l'URL de votre sheet d'édition) et collez-la dans le premier champ de configuration.</li>
+            </ol>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FLOATING SELECTION BAR -->
+  <div class="floating-selection-bar" id="floating-selection-bar" hidden>
+    <div class="floating-container">
+      <div class="selection-info">
+        <span class="selection-counter" id="floating-selected-count">0</span>
+        <span class="selection-label">élèves sélectionnés</span>
+        <span class="selection-level-badge" id="floating-selected-level">3ème</span>
+      </div>
+      <div class="floating-actions">
+        <button class="btn btn-together" id="floating-btn-together">
+          <span class="btn-icon">🟢</span> Regrouper
+        </button>
+        <button class="btn btn-separate" id="floating-btn-separate">
+          <span class="btn-icon">🔴</span> Éloigner
+        </button>
+        <button class="btn btn-link btn-inverse" id="floating-btn-clear">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NATIVE MODAL: CREATE REQUEST -->
+  <dialog id="request-modal" closedby="any" aria-labelledby="modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Nouveau vœu de placement</h2>
+        <button class="close-modal-btn" id="close-request-modal-btn" aria-label="Fermer">✕</button>
+      </div>
+      
+      <form id="request-form" method="dialog">
+        <div class="modal-body">
+          <!-- Type Badge & Level -->
+          <div class="modal-summary-row">
+            <span class="badge" id="modal-type-badge">Regroupement</span>
+            <span class="level-text">Futur niveau : <strong id="modal-level-text">3ème</strong></span>
+          </div>
+
+          <!-- Students list -->
+          <div class="form-group">
+            <label>Élèves concernés par la demande :</label>
+            <ul class="modal-selected-students-list" id="modal-students-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+
+          <!-- Author -->
+          <div class="form-group">
+            <label for="input-author">Auteur de la demande <span class="required">*</span></label>
+            <input type="text" id="input-author" class="form-control" placeholder="Vos initiales ou votre nom (ex: BC ou B. Capel)" required>
+          </div>
+
+          <!-- Comment/Reason -->
+          <div class="form-group">
+            <label for="input-motif">Motif / Commentaire pédagogique <span class="required">*</span></label>
+            <textarea id="input-motif" class="form-control" rows="4" placeholder="Expliquez brièvement la raison pédagogique (ex: Excellent binôme de travail, à séparer pour limiter le bavardage, suivi MDPH, etc.)" required></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-request-btn">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="submit-request-btn">
+            <span class="btn-spinner" id="submit-spinner" hidden></span> Enregistrer le vœu
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- NATIVE MODAL: CSV IMPORT -->
+  <dialog id="import-modal" closedby="any" aria-labelledby="import-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="import-modal-title">Importer le fichier CSV des élèves</h2>
+        <button class="close-modal-btn" id="close-import-modal-btn" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="import-instructions">
+          Importez la liste des élèves inscrits au format CSV. L'application filtrera automatiquement pour ne garder que les élèves du secondaire (<strong>de la 6ème à la Terminale</strong>).
+        </p>
+
+        <!-- Dropzone Area -->
+        <div class="csv-dropzone" id="csv-dropzone">
+          <div class="dropzone-content">
+            <span class="dropzone-icon">📄</span>
+            <p>Glissez-déposez votre fichier CSV ici</p>
+            <span>ou</span>
+            <button class="btn btn-secondary" id="browse-csv-btn">Parcourir les fichiers</button>
+            <input type="file" id="csv-file-input" accept=".csv" hidden>
+          </div>
+        </div>
+
+        <!-- CSV Format details preview -->
+        <div class="csv-format-preview">
+          <h4>Format de colonnes attendu :</h4>
+          <p>Le fichier doit inclure au moins les colonnes suivantes :</p>
+          <div class="format-tags">
+            <span>ID Dossier</span>
+            <span>Nom de l'élève</span>
+            <span>Classe / Niveau</span>
+          </div>
+        </div>
+
+        <!-- Import progress/results -->
+        <div class="import-results" id="import-results-box" hidden>
+          <div class="status-indicator"></div>
+          <p class="status-message"></p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="close-import-btn-footer">Fermer</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- JavaScript application entry point -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
