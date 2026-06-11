@@ -1643,3 +1643,10 @@ dialog[open] .modal-content {
   display: none !important;
 }
 
+/* Explainer Video Modal sizing override */
+#video-modal {
+  max-width: 1200px;
+  width: 95%;
+}
+
+
