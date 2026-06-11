@@ -74,9 +74,9 @@
           <span class="pill-dot"></span>
           <span class="pill-text">Google Sheets non configuré</span>
         </div>
-        <a href="https://drive.google.com/file/d/1R1A2Mdj-hsiMVc8D0dPDpKHYBtaTO7t-/view" target="_blank" rel="noopener" class="btn btn-secondary btn-small prof-only" id="explainer-video-btn" style="text-decoration: none;">
+        <button class="btn btn-secondary btn-small prof-only" id="explainer-video-btn">
           🎥 Vidéo explicative
-        </a>
+        </button>
         <button class="btn btn-secondary btn-small" id="admin-login-btn">🔑 Connexion</button>
         <button class="theme-toggle-btn" id="theme-toggle-btn" title="Changer de thème" aria-label="Toggle theme">
           <span class="theme-icon-light">☀️</span>
@@ -434,6 +434,19 @@
 
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="close-import-btn-footer">Fermer</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- NATIVE MODAL: VIDEO EXPLICATIVE -->
+  <dialog id="video-modal" closedby="any" aria-labelledby="video-modal-title">
+    <div class="modal-content" style="max-width: 800px; width: 95%; margin: auto;">
+      <div class="modal-header">
+        <h2 id="video-modal-title">🎥 Vidéo explicative</h2>
+        <button class="close-modal-btn" id="close-video-modal-btn" aria-label="Fermer">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 0; aspect-ratio: 16/9;">
+        <iframe src="https://drive.google.com/file/d/1R1A2Mdj-hsiMVc8D0dPDpKHYBtaTO7t-/preview" width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="display: block; border: none;"></iframe>
       </div>
     </div>
   </dialog>

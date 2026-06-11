@@ -192,6 +192,9 @@ const DOM = {
   portalLoginError: document.getElementById('portal-login-error'),
   adminLoginBtn: document.getElementById('admin-login-btn'), // Used as general logout button now
   tabBtnSettings: document.getElementById('tab-btn-settings'),
+  explainerVideoBtn: document.getElementById('explainer-video-btn'),
+  videoModal: document.getElementById('video-modal'),
+  closeVideoModalBtn: document.getElementById('close-video-modal-btn'),
   
   toastContainer: document.getElementById('toast-container')
 };
@@ -963,12 +966,13 @@ function renderRequestsUI() {
  */
 function updateConnectionStatus(isOnline, text) {
   if (isOnline) {
-    DOM.connectionPill.className = "connection-pill online";
-    DOM.connectionPill.querySelector('.pill-text').textContent = text;
+    DOM.connectionPill.classList.remove('offline');
+    DOM.connectionPill.classList.add('online');
   } else {
-    DOM.connectionPill.className = "connection-pill offline";
-    DOM.connectionPill.querySelector('.pill-text').textContent = text;
+    DOM.connectionPill.classList.remove('online');
+    DOM.connectionPill.classList.add('offline');
   }
+  DOM.connectionPill.querySelector('.pill-text').textContent = text;
 }
 
 /**
@@ -1154,8 +1158,25 @@ function bindStudentsEvents() {
   DOM.closeImportModalBtn.addEventListener('click', () => DOM.importModal.close());
   DOM.closeImportBtnFooter.addEventListener('click', () => DOM.importModal.close());
   
+  if (DOM.explainerVideoBtn) {
+    DOM.explainerVideoBtn.addEventListener('click', () => DOM.videoModal.showModal());
+  }
+  if (DOM.closeVideoModalBtn) {
+    DOM.closeVideoModalBtn.addEventListener('click', () => DOM.videoModal.close());
+  }
+  if (DOM.videoModal) {
+    DOM.videoModal.addEventListener('close', () => {
+      const iframe = DOM.videoModal.querySelector('iframe');
+      if (iframe) {
+        const currentSrc = iframe.src;
+        iframe.src = '';
+        iframe.src = currentSrc;
+      }
+    });
+  }
+  
   // Fallbacks for <dialog> light dismiss in Safari
-  [DOM.requestModal, DOM.importModal].forEach(dialog => {
+  [DOM.requestModal, DOM.importModal, DOM.videoModal].filter(Boolean).forEach(dialog => {
     if (!('closedBy' in HTMLDialogElement.prototype)) {
       dialog.addEventListener('click', (event) => {
         if (event.target !== dialog) return;
