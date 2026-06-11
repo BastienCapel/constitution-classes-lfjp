@@ -597,7 +597,8 @@ function processCSVFile(file) {
   
   DOM.importResultsBox.removeAttribute('hidden');
   DOM.importResultsBox.className = "import-results";
-  DOM.importResultsBox.querySelector('.status-indicator').className = "spinner";
+  DOM.importResultsBox.querySelector('.status-indicator').className = "status-indicator spinner";
+  DOM.importResultsBox.querySelector('.status-indicator').textContent = "";
   DOM.importResultsBox.querySelector('.status-message').textContent = "Lecture du fichier...";
   
   reader.onload = function(e) {
@@ -615,6 +616,7 @@ function processCSVFile(file) {
       // Find indexes with exact match or keywords
       const findHeaderIndex = (keywords) => {
         return headers.findIndex(h => {
+          if (!h) return false;
           const cleanHeader = h.toLowerCase().trim();
           return keywords.some(k => cleanHeader.includes(k.toLowerCase()));
         });
@@ -691,6 +693,8 @@ function processCSVFile(file) {
   
   reader.onerror = function() {
     DOM.importResultsBox.className = "import-results error";
+    DOM.importResultsBox.querySelector('.status-indicator').className = "status-indicator";
+    DOM.importResultsBox.querySelector('.status-indicator').textContent = "❌";
     DOM.importResultsBox.querySelector('.status-message').textContent = "Erreur lors de la lecture physique du fichier.";
   };
   
