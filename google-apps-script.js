@@ -100,8 +100,8 @@ function doPost(e) {
         }
         
         if (isMatch) {
-          // Mettre à jour le statut dans la colonne 8 (H) à "Annulé"
-          sheet.getRange(i + 2, 8).setValue("Annulé");
+          // Supprimer la ligne de la feuille
+          sheet.deleteRow(i + 2);
           found = true;
           break;
         }

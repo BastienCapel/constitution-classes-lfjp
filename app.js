@@ -78,7 +78,7 @@ function doPost(e) {
         }
         
         if (isMatch) {
-          sheet.getRange(i + 2, 8).setValue("Annulé");
+          sheet.deleteRow(i + 2);
           found = true;
           break;
         }
