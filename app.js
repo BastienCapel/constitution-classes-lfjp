@@ -464,8 +464,6 @@ function renderStudentsGrid() {
         <h4 class="student-name">${student.name}</h4>
         <div class="student-badges">
           <span class="badge badge-level">${student.level}</span>
-          <span class="badge ${paymentBadgeClass}">${paymentText}</span>
-          <span class="badge badge-reinscription">${student.status || 'Réinscrit'}</span>
         </div>
       </div>
     `;
