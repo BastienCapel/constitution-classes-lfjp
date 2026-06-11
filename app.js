@@ -126,8 +126,6 @@ const DOM = {
   emptyStateImportBtn: document.getElementById('empty-state-import-btn'),
   openImportModalBtn: document.getElementById('open-import-modal-btn'),
   studentsCountText: document.getElementById('students-count-text'),
-  selectAllVisibleBtn: document.getElementById('select-all-visible-btn'),
-  deselectAllBtn: document.getElementById('deselect-all-btn'),
   
   // Requests tab
   requestsLoader: document.getElementById('requests-loader'),
@@ -644,31 +642,7 @@ function clearSelection() {
   updateFloatingSelectionBar();
 }
 
-/**
- * Select all visible students in the filtered view (must be from the same grade level)
- */
-function selectAllVisible() {
-  const searchQuery = DOM.studentSearch.value.trim().toLowerCase();
-  
-  // Find visible students
-  const visible = state.students.filter(student => {
-    const matchesLevel = student.level === activeLevelFilter;
-    const matchesSearch = !searchQuery || 
-      student.name.toLowerCase().includes(searchQuery) || 
-      student.id.toLowerCase().includes(searchQuery);
-    return matchesLevel && matchesSearch;
-  });
-  
-  if (visible.length === 0) return;
-  
-  state.selectedIds.clear();
-  visible.forEach(s => state.selectedIds.add(s.id));
-  state.selectedLevel = activeLevelFilter;
-  
-  renderStudentsGrid();
-  updateFloatingSelectionBar();
-  showToast(`${visible.length} élèves sélectionnés.`, 'info');
-}
+
 
 // --- CSV Import Controller ---
 
@@ -1154,8 +1128,6 @@ function bindStudentsEvents() {
   });
   
   // Selection Actions
-  DOM.selectAllVisibleBtn.addEventListener('click', selectAllVisible);
-  DOM.deselectAllBtn.addEventListener('click', clearSelection);
   DOM.floatingBtnClear.addEventListener('click', clearSelection);
   
   // Floating Actions Buttons -> Open Native Modal
