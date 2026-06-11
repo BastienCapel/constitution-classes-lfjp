@@ -1639,3 +1639,7 @@ dialog[open] .modal-content {
   display: none !important;
 }
 
+#app-container:not(.role-prof) .prof-only {
+  display: none !important;
+}
+
