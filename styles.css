@@ -1634,7 +1634,8 @@ dialog[open] .modal-content {
 }
 
 /* Visibility based on role */
-#app-container:not(.role-admin) .col-action {
+#app-container:not(.role-admin) .col-action,
+#app-container:not(.role-admin) .admin-only {
   display: none !important;
 }
 
