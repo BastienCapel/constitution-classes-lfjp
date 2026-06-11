@@ -472,7 +472,7 @@ function switchTab(tabId) {
 /**
  * Render level chips filtering bar
  */
-let activeLevelFilter = 'all';
+let activeLevelFilter = '6ème';
 
 function renderLevelChips() {
   const chips = DOM.levelChipsContainer.querySelectorAll('.level-chip');
@@ -494,7 +494,7 @@ function renderStudentsGrid() {
   
   // Filter students based on level and search query
   const filtered = state.students.filter(student => {
-    const matchesLevel = activeLevelFilter === 'all' || student.level === activeLevelFilter;
+    const matchesLevel = student.level === activeLevelFilter;
     const matchesSearch = !searchQuery || 
       student.name.toLowerCase().includes(searchQuery) || 
       student.id.toLowerCase().includes(searchQuery);
@@ -648,11 +648,6 @@ function clearSelection() {
  * Select all visible students in the filtered view (must be from the same grade level)
  */
 function selectAllVisible() {
-  if (activeLevelFilter === 'all') {
-    showToast("Veuillez d'abord filtrer par un niveau spécifique pour pouvoir tout sélectionner.", "warning");
-    return;
-  }
-  
   const searchQuery = DOM.studentSearch.value.trim().toLowerCase();
   
   // Find visible students
