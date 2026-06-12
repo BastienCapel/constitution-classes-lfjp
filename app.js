@@ -655,6 +655,40 @@ function clearSelection() {
 // --- Google Sheets Students Fetching ---
 
 /**
+ * Attempt to find the GID of a tab name in a published Google Sheet HTML
+ */
+async function findPublishedGid(sheetUrl, tabName) {
+  if (!sheetUrl) return null;
+  
+  // Convert pub URL to pubhtml URL if needed
+  let pubhtmlUrl = sheetUrl.trim();
+  if (pubhtmlUrl.includes('/pub') && !pubhtmlUrl.includes('/pubhtml')) {
+    pubhtmlUrl = pubhtmlUrl.replace(/\/pub(\?.*)?$/, '/pubhtml');
+  }
+  
+  if (!pubhtmlUrl.includes('/pubhtml')) {
+    return null; // Not a published sheet url
+  }
+  
+  try {
+    const response = await fetch(`${pubhtmlUrl}${pubhtmlUrl.includes('?') ? '&' : '?'}_cb=${new Date().getTime()}`);
+    if (!response.ok) return null;
+    
+    const htmlText = await response.text();
+    // Escape special characters in tab name for regex
+    const escapedTab = tabName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`name:\\s*['"]${escapedTab}['"]\\s*,.*?gid:\\s*['"]([0-9]+)['"]`, 'i');
+    const match = htmlText.match(regex);
+    if (match && match[1]) {
+      return match[1];
+    }
+  } catch (e) {
+    console.warn("Failed to parse pubhtml for GID", e);
+  }
+  return null;
+}
+
+/**
  * Fetch students from the linked Google Sheets ("ELEVES" tab)
  */
 async function fetchStudents() {
@@ -679,9 +713,20 @@ async function fetchStudents() {
     `;
   }
   
-  const csvUrl = getSheetsCsvUrl(state.settings.sheetUrl, 'ELEVES');
+  let csvUrl = getSheetsCsvUrl(state.settings.sheetUrl, 'ELEVES');
   
   try {
+    // If it's a published Google Sheet, dynamically resolve the GID for the 'ELEVES' tab
+    if (state.settings.sheetUrl.includes('/pubhtml') || state.settings.sheetUrl.includes('/pub')) {
+      const gid = await findPublishedGid(state.settings.sheetUrl, 'ELEVES');
+      if (gid) {
+        const match = state.settings.sheetUrl.match(/\/d\/e\/([a-zA-Z0-9-_]+)/);
+        if (match && match[1]) {
+          csvUrl = `https://docs.google.com/spreadsheets/d/e/${match[1]}/pub?output=csv&gid=${gid}`;
+        }
+      }
+    }
+    
     const response = await fetch(`${csvUrl}&_cb=${new Date().getTime()}`);
     if (!response.ok) {
       throw new Error(`Erreur HTTP : ${response.status}`);
