@@ -412,6 +412,10 @@ const Storage = {
     try {
       const storedStudents = localStorage.getItem('lfjp_students');
       state.students = storedStudents ? JSON.parse(storedStudents) : [];
+      // Assurer la présence de uniqueId pour la rétrocompatibilité du cache
+      state.students.forEach(s => {
+        if (!s.uniqueId) s.uniqueId = `${s.id}#${s.name}`;
+      });
     } catch (e) {
       console.error('Error loading students from LocalStorage', e);
       state.students = [];
@@ -534,10 +538,11 @@ function renderStudentsGrid() {
   }
   
   filtered.forEach(student => {
-    const isSelected = state.selectedIds.has(student.id);
+    const isSelected = state.selectedIds.has(student.uniqueId);
     const card = document.createElement('div');
     card.className = `student-card ${isSelected ? 'selected' : ''}`;
     card.dataset.id = student.id;
+    card.dataset.uniqueId = student.uniqueId;
     card.dataset.level = student.level;
     
     // Dim cards of different levels if a selection is active
@@ -567,7 +572,7 @@ function renderStudentsGrid() {
     // Click Handler
     card.addEventListener('click', (e) => {
       // Prevent click triggering twice if clicking the checkbox wrapper
-      toggleStudentSelection(student.id, student.level);
+      toggleStudentSelection(student.uniqueId, student.level);
     });
     
     DOM.studentsGrid.appendChild(card);
@@ -772,9 +777,12 @@ async function fetchStudents() {
       
       // Filter secondary level classes only
       if (normalizedLevel && SECONDARY_LEVELS.includes(normalizedLevel)) {
+        const studentId = row[idxId].trim();
+        const studentName = row[idxName].trim();
         importedStudents.push({
-          id: row[idxId].trim(),
-          name: row[idxName].trim(),
+          id: studentId,
+          name: studentName,
+          uniqueId: `${studentId}#${studentName}`,
           level: normalizedLevel,
           payment: idxPayment !== -1 ? row[idxPayment].trim() : 'Payé',
           status: idxStatus !== -1 ? row[idxStatus].trim() : 'Réinscrit'
@@ -1251,7 +1259,7 @@ function openRequestModal(type) {
   
   // Populate student list inside modal
   DOM.modalStudentsList.innerHTML = '';
-  const selectedStudents = state.students.filter(s => state.selectedIds.has(s.id));
+  const selectedStudents = state.students.filter(s => state.selectedIds.has(s.uniqueId));
   
   selectedStudents.forEach(student => {
     const li = document.createElement('li');
@@ -1276,8 +1284,8 @@ function bindFormSubmissions() {
     
     const type = DOM.modalTypeBadge.textContent;
     const niveau = state.selectedLevel;
-    const ids = Array.from(state.selectedIds);
-    const selectedStudents = state.students.filter(s => state.selectedIds.has(s.id));
+    const selectedStudents = state.students.filter(s => state.selectedIds.has(s.uniqueId));
+    const ids = selectedStudents.map(s => s.id);
     const names = selectedStudents.map(s => s.name);
     
     const author = DOM.inputAuthor.value.trim();
