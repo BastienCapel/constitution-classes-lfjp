@@ -116,19 +116,19 @@
         </div>
 
         <div class="actions-wrapper">
-          <!-- CSV Import Area -->
-          <button class="btn btn-secondary" id="open-import-modal-btn">
-            <span class="btn-icon">📥</span> Importer CSV Élèves
+          <!-- Sheets Sync Area -->
+          <button class="btn btn-secondary" id="sync-students-btn">
+            <span class="btn-icon">🔄</span> Actualiser les élèves
           </button>
         </div>
       </div>
 
       <!-- Empty State / Welcome Screen -->
       <div class="empty-state-card" id="students-empty-state">
-        <div class="empty-state-icon">📥</div>
-        <h2>Aucun élève dans la base de données</h2>
-        <p>Veuillez importer le fichier CSV des élèves pour commencer à effectuer des vœux de regroupement ou d'éloignement.</p>
-        <button class="btn btn-primary" id="empty-state-import-btn">Importer le fichier CSV</button>
+        <div class="empty-state-icon">👥</div>
+        <h2>Aucun élève chargé</h2>
+        <p>Les élèves du Google Sheet lié n'ont pas encore été récupérés.</p>
+        <button class="btn btn-primary" id="empty-state-sync-btn">Charger les élèves depuis Google Sheets</button>
       </div>
 
       <!-- Students List Container -->
@@ -390,53 +390,7 @@
     </div>
   </dialog>
 
-  <!-- NATIVE MODAL: CSV IMPORT -->
-  <dialog id="import-modal" closedby="any" aria-labelledby="import-modal-title">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="import-modal-title">Importer le fichier CSV des élèves</h2>
-        <button class="close-modal-btn" id="close-import-modal-btn" aria-label="Fermer">✕</button>
-      </div>
 
-      <div class="modal-body">
-        <p class="import-instructions">
-          Importez la liste des élèves inscrits au format CSV. L'application filtrera automatiquement pour ne garder que les élèves du secondaire (<strong>de la 6ème à la Terminale</strong>).
-        </p>
-
-        <!-- Dropzone Area -->
-        <div class="csv-dropzone" id="csv-dropzone">
-          <div class="dropzone-content">
-            <span class="dropzone-icon">📄</span>
-            <p>Glissez-déposez votre fichier CSV ici</p>
-            <span>ou</span>
-            <button class="btn btn-secondary" id="browse-csv-btn">Parcourir les fichiers</button>
-            <input type="file" id="csv-file-input" accept=".csv" hidden>
-          </div>
-        </div>
-
-        <!-- CSV Format details preview -->
-        <div class="csv-format-preview">
-          <h4>Format de colonnes attendu :</h4>
-          <p>Le fichier doit inclure au moins les colonnes suivantes :</p>
-          <div class="format-tags">
-            <span>ID Dossier</span>
-            <span>Nom de l'élève</span>
-            <span>Classe / Niveau</span>
-          </div>
-        </div>
-
-        <!-- Import progress/results -->
-        <div class="import-results" id="import-results-box" hidden>
-          <div class="status-indicator"></div>
-          <p class="status-message"></p>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="close-import-btn-footer">Fermer</button>
-      </div>
-    </div>
-  </dialog>
 
   <!-- NATIVE MODAL: VIDEO EXPLICATIVE -->
   <dialog id="video-modal" closedby="any" aria-labelledby="video-modal-title">

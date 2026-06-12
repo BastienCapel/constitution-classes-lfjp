@@ -123,8 +123,8 @@ const DOM = {
   studentSearch: document.getElementById('student-search'),
   clearSearchBtn: document.getElementById('clear-search-btn'),
   levelChipsContainer: document.getElementById('level-chips-container'),
-  emptyStateImportBtn: document.getElementById('empty-state-import-btn'),
-  openImportModalBtn: document.getElementById('open-import-modal-btn'),
+  emptyStateSyncBtn: document.getElementById('empty-state-sync-btn'),
+  syncStudentsBtn: document.getElementById('sync-students-btn'),
   studentsCountText: document.getElementById('students-count-text'),
   
   // Requests tab
@@ -175,13 +175,7 @@ const DOM = {
   submitRequestBtn: document.getElementById('submit-request-btn'),
   submitSpinner: document.getElementById('submit-spinner'),
   
-  importModal: document.getElementById('import-modal'),
-  csvDropzone: document.getElementById('csv-dropzone'),
-  browseCsvBtn: document.getElementById('browse-csv-btn'),
-  csvFileInput: document.getElementById('csv-file-input'),
-  importResultsBox: document.getElementById('import-results-box'),
-  closeImportModalBtn: document.getElementById('close-import-modal-btn'),
-  closeImportBtnFooter: document.getElementById('close-import-btn-footer'),
+
   
   // Authentication & Portal
   appContainer: document.getElementById('app-container'),
@@ -296,6 +290,7 @@ function loginUser(username, password) {
     
     // Sync data since we are now authorized
     if (state.settings.sheetUrl) {
+      fetchStudents();
       fetchExistingRequests();
     }
   } else {
@@ -328,7 +323,7 @@ function normalizeLevel(levelStr) {
 /**
  * Convert a Google Sheets URL into its CSV export equivalent
  */
-function getSheetsCsvUrl(url) {
+function getSheetsCsvUrl(url, tabName = '') {
   if (!url) return '';
   url = url.trim();
   
@@ -337,7 +332,11 @@ function getSheetsCsvUrl(url) {
     // Extract the publication ID
     const match = url.match(/\/d\/e\/([a-zA-Z0-9-_]+)/);
     if (match && match[1]) {
-      return `https://docs.google.com/spreadsheets/d/e/${match[1]}/pub?output=csv`;
+      let csvUrl = `https://docs.google.com/spreadsheets/d/e/${match[1]}/pub?output=csv`;
+      if (tabName) {
+        csvUrl += `&sheet=${encodeURIComponent(tabName)}`;
+      }
+      return csvUrl;
     }
   }
   
@@ -345,10 +344,16 @@ function getSheetsCsvUrl(url) {
   if (url.includes('/spreadsheets/d/')) {
     const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
     if (match && match[1]) {
-      // Get sheet ID (gid) if present, otherwise default to first sheet
-      const gidMatch = url.match(/gid=([0-9]+)/);
-      const gid = gidMatch ? gidMatch[1] : '0';
-      return `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv&gid=${gid}`;
+      let csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+      if (tabName) {
+        csvUrl += `&sheet=${encodeURIComponent(tabName)}`;
+      } else {
+        // Get sheet ID (gid) if present, otherwise default to first sheet
+        const gidMatch = url.match(/gid=([0-9]+)/);
+        const gid = gidMatch ? gidMatch[1] : '0';
+        csvUrl += `&gid=${gid}`;
+      }
+      return csvUrl;
     }
   }
   
@@ -647,118 +652,117 @@ function clearSelection() {
 
 
 
-// --- CSV Import Controller ---
+// --- Google Sheets Students Fetching ---
 
 /**
- * Load and Process CSV File contents
+ * Fetch students from the linked Google Sheets ("ELEVES" tab)
  */
-function processCSVFile(file) {
-  const reader = new FileReader();
+async function fetchStudents() {
+  if (!state.settings.sheetUrl) {
+    DOM.studentsSection.setAttribute('hidden', '');
+    DOM.studentsEmptyState.removeAttribute('hidden');
+    updateConnectionStatus(false, "Google Sheets non configuré");
+    return;
+  }
   
-  DOM.importResultsBox.removeAttribute('hidden');
-  DOM.importResultsBox.className = "import-results";
-  DOM.importResultsBox.querySelector('.status-indicator').className = "status-indicator spinner";
-  DOM.importResultsBox.querySelector('.status-indicator').textContent = "";
-  DOM.importResultsBox.querySelector('.status-message').textContent = "Lecture du fichier...";
+  showToast("Synchronisation des élèves...", "info");
   
-  reader.onload = function(e) {
-    try {
-      const text = e.target.result;
-      const rows = parseCSV(text);
-      
-      if (rows.length <= 1) {
-        throw new Error("Le fichier CSV semble vide ou invalide.");
-      }
-      
-      // Find column indexes
-      const headers = rows[0];
-      
-      // Find indexes with exact match or keywords
-      const findHeaderIndex = (keywords) => {
-        return headers.findIndex(h => {
-          if (!h) return false;
-          const cleanHeader = h.toLowerCase().trim();
-          return keywords.some(k => cleanHeader.includes(k.toLowerCase()));
-        });
-      };
-      
-      const idxId = findHeaderIndex(['id dossier', 'id_dossier', 'dossier id', 'identifiant']);
-      const idxName = findHeaderIndex(["nom de l'eleve", 'nom de l\'élève', 'nom eleve', 'nom', 'eleve']);
-      const idxLevel = findHeaderIndex(['classe / niveau', 'classe/niveau', 'classe', 'niveau']);
-      const idxPayment = findHeaderIndex(['paiement', 'paye', 'facturation']);
-      const idxStatus = findHeaderIndex(['macro-statut', 'statut', 'macro statut', 'reinscription', 'réinscription']);
-      
-      if (idxId === -1 || idxName === -1 || idxLevel === -1) {
-        throw new Error("Colonnes requises manquantes dans le CSV. Assurez-vous d'avoir : 'ID Dossier', 'Nom de l'élève' et 'Classe / Niveau'.");
-      }
-      
-      const importedStudents = [];
-      let skippedCount = 0;
-      
-      // Parse data rows
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (row.length < 3 || !row[idxId] || !row[idxName]) continue;
-        
-        const rawLevel = row[idxLevel];
-        const normalizedLevel = normalizeLevel(rawLevel);
-        
-        // Filter secondary level classes only
-        if (normalizedLevel && SECONDARY_LEVELS.includes(normalizedLevel)) {
-          importedStudents.push({
-            id: row[idxId].trim(),
-            name: row[idxName].trim(),
-            level: normalizedLevel,
-            payment: idxPayment !== -1 ? row[idxPayment].trim() : 'Payé',
-            status: idxStatus !== -1 ? row[idxStatus].trim() : 'Réinscrit'
-          });
-        } else {
-          skippedCount++;
-        }
-      }
-      
-      if (importedStudents.length === 0) {
-        throw new Error("Aucun élève du secondaire (6ème à Terminale) n'a été trouvé dans ce fichier.");
-      }
-      
-      // Save state
-      state.students = importedStudents;
-      Storage.saveStudents();
-      
-      // Success display
-      DOM.importResultsBox.className = "import-results success";
-      DOM.importResultsBox.querySelector('.status-indicator').className = "status-indicator";
-      DOM.importResultsBox.querySelector('.status-indicator').textContent = "✅";
-      DOM.importResultsBox.querySelector('.status-message').innerHTML = `
-        <strong>Importation réussie !</strong><br>
-        ${importedStudents.length} élèves importés.<br>
-        <small>${skippedCount} lignes ignorées (niveaux primaire/maternelle ou invalides).</small>
-      `;
-      
-      showToast(`${importedStudents.length} élèves importés avec succès.`, 'success');
-      
-      // Refresh UI grid
-      clearSelection();
-      renderStudentsGrid();
-      
-    } catch (err) {
-      console.error(err);
-      DOM.importResultsBox.className = "import-results error";
-      DOM.importResultsBox.querySelector('.status-indicator').className = "status-indicator";
-      DOM.importResultsBox.querySelector('.status-indicator').textContent = "❌";
-      DOM.importResultsBox.querySelector('.status-message').textContent = err.message;
-      showToast("Échec de l'importation du CSV.", 'error');
+  const hadNoStudents = state.students.length === 0;
+  if (hadNoStudents) {
+    DOM.studentsEmptyState.setAttribute('hidden', '');
+    DOM.studentsSection.removeAttribute('hidden');
+    DOM.studentsGrid.innerHTML = `
+      <div style="grid-column: 1/-1; padding: 40px; text-align: center;">
+        <div class="spinner" style="margin: 0 auto 15px;"></div>
+        <p>Chargement des élèves depuis Google Sheets...</p>
+      </div>
+    `;
+  }
+  
+  const csvUrl = getSheetsCsvUrl(state.settings.sheetUrl, 'ELEVES');
+  
+  try {
+    const response = await fetch(`${csvUrl}&_cb=${new Date().getTime()}`);
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP : ${response.status}`);
     }
-  };
-  
-  reader.onerror = function() {
-    DOM.importResultsBox.className = "import-results error";
-    DOM.importResultsBox.querySelector('.status-indicator').className = "status-indicator";
-    DOM.importResultsBox.querySelector('.status-indicator').textContent = "❌";
-    DOM.importResultsBox.querySelector('.status-message').textContent = "Erreur lors de la lecture physique du fichier.";
-  };
-  
-  reader.readAsText(file, 'UTF-8'); // Support french accents
+    
+    const csvText = await response.text();
+    const rows = parseCSV(csvText);
+    
+    if (rows.length <= 1) {
+      throw new Error("L'onglet 'ELEVES' semble vide ou invalide.");
+    }
+    
+    // Find column indexes
+    const headers = rows[0];
+    const findHeaderIndex = (keywords) => {
+      return headers.findIndex(h => {
+        if (!h) return false;
+        const cleanHeader = h.toLowerCase().trim();
+        return keywords.some(k => cleanHeader.includes(k.toLowerCase()));
+      });
+    };
+    
+    const idxId = findHeaderIndex(['id dossier', 'id_dossier', 'dossier id', 'identifiant']);
+    const idxName = findHeaderIndex(["nom de l'eleve", 'nom de l\'élève', 'nom eleve', 'nom', 'eleve']);
+    const idxLevel = findHeaderIndex(['classe / niveau', 'classe/niveau', 'classe', 'niveau']);
+    const idxPayment = findHeaderIndex(['paiement', 'paye', 'facturation']);
+    const idxStatus = findHeaderIndex(['macro-statut', 'statut', 'macro statut', 'reinscription', 'réinscription']);
+    
+    if (idxId === -1 || idxName === -1 || idxLevel === -1) {
+      throw new Error("Colonnes requises manquantes dans l'onglet 'ELEVES'. Assurez-vous d'avoir : 'ID Dossier', 'Nom de l'élève' et 'Classe / Niveau'.");
+    }
+    
+    const importedStudents = [];
+    let skippedCount = 0;
+    
+    // Parse data rows
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.length < 3 || !row[idxId] || !row[idxName]) continue;
+      
+      const rawLevel = row[idxLevel];
+      const normalizedLevel = normalizeLevel(rawLevel);
+      
+      // Filter secondary level classes only
+      if (normalizedLevel && SECONDARY_LEVELS.includes(normalizedLevel)) {
+        importedStudents.push({
+          id: row[idxId].trim(),
+          name: row[idxName].trim(),
+          level: normalizedLevel,
+          payment: idxPayment !== -1 ? row[idxPayment].trim() : 'Payé',
+          status: idxStatus !== -1 ? row[idxStatus].trim() : 'Réinscrit'
+        });
+      } else {
+        skippedCount++;
+      }
+    }
+    
+    if (importedStudents.length === 0) {
+      throw new Error("Aucun élève du secondaire (6ème à Terminale) n'a été trouvé dans cet onglet.");
+    }
+    
+    // Save state
+    state.students = importedStudents;
+    Storage.saveStudents();
+    
+    showToast(`${importedStudents.length} élèves synchronisés avec succès depuis Google Sheets !`, 'success');
+    
+    // Refresh UI
+    clearSelection();
+    renderStudentsGrid();
+    
+  } catch (err) {
+    console.error('Error fetching students:', err);
+    showToast(`Échec de synchronisation des élèves : ${err.message}`, 'error');
+    if (hadNoStudents) {
+      DOM.studentsSection.setAttribute('hidden', '');
+      DOM.studentsEmptyState.removeAttribute('hidden');
+    } else {
+      renderStudentsGrid();
+    }
+  }
 }
 
 // --- Google Sheets Integration API ---
@@ -1143,20 +1147,13 @@ function bindStudentsEvents() {
     openRequestModal('Éloignement');
   });
   
-  // Empty State button triggers
-  DOM.emptyStateImportBtn.addEventListener('click', () => {
-    DOM.importModal.showModal();
-  });
-  DOM.openImportModalBtn.addEventListener('click', () => {
-    DOM.importModal.showModal();
-  });
+  // Sync button triggers
+  DOM.emptyStateSyncBtn.addEventListener('click', fetchStudents);
+  DOM.syncStudentsBtn.addEventListener('click', fetchStudents);
   
   // Close Modals buttons (Native Dialog Close)
   DOM.closeRequestModalBtn.addEventListener('click', () => DOM.requestModal.close());
   DOM.cancelRequestBtn.addEventListener('click', () => DOM.requestModal.close());
-  
-  DOM.closeImportModalBtn.addEventListener('click', () => DOM.importModal.close());
-  DOM.closeImportBtnFooter.addEventListener('click', () => DOM.importModal.close());
   
   if (DOM.explainerVideoBtn) {
     DOM.explainerVideoBtn.addEventListener('click', () => DOM.videoModal.showModal());
@@ -1262,7 +1259,10 @@ function bindFormSubmissions() {
   DOM.testSettingsBtn.addEventListener('click', testBackendConnection);
   
   // Sync requests button
-  DOM.syncRequestsBtn.addEventListener('click', fetchExistingRequests);
+  DOM.syncRequestsBtn.addEventListener('click', () => {
+    fetchStudents();
+    fetchExistingRequests();
+  });
   DOM.requestLevelFilter.addEventListener('change', renderRequestsUI);
   DOM.requestTypeFilter.addEventListener('change', renderRequestsUI);
   DOM.requestSearch.addEventListener('input', renderRequestsUI);
@@ -1338,44 +1338,7 @@ async function testBackendConnection() {
   }
 }
 
-function bindDragAndDropCSV() {
-  const dropzone = DOM.csvDropzone;
-  const fileInput = DOM.csvFileInput;
-  
-  DOM.browseCsvBtn.addEventListener('click', () => {
-    fileInput.click();
-  });
-  
-  fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-      processCSVFile(e.target.files[0]);
-    }
-  });
-  
-  // Drag and drop event handlers
-  ['dragenter', 'dragover'].forEach(eventName => {
-    dropzone.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    }, false);
-  });
-  
-  ['dragleave', 'drop'].forEach(eventName => {
-    dropzone.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-    }, false);
-  });
-  
-  dropzone.addEventListener('drop', (e) => {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    
-    if (files.length > 0) {
-      processCSVFile(files[0]);
-    }
-  }, false);
-}
+
 
 // --- App Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1386,7 +1349,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderLevelChips();
   bindStudentsEvents();
   bindFormSubmissions();
-  bindDragAndDropCSV();
   
   // Fill settings inputs in UI
   if (state.settings.sheetUrl) DOM.inputSheetUrl.value = state.settings.sheetUrl;
@@ -1398,6 +1360,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Auto-connect to Sheets if URLs are saved and authorized
   if (state.role && state.settings.sheetUrl) {
+    fetchStudents();
     fetchExistingRequests();
   }
   
