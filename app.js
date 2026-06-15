@@ -366,40 +366,57 @@ function getSheetsCsvUrl(url, tabName = '') {
 function parseCSV(csvText) {
   if (!csvText) return [];
   
-  const lines = csvText.split(/\r?\n/);
-  if (lines.length === 0) return [];
-  
-  // Auto-detect separator: check first line for commas vs semicolons
-  const firstLine = lines[0];
+  // Auto-detect separator: check first line (up to first newline)
+  const firstLineEnd = csvText.indexOf('\n');
+  const firstLine = firstLineEnd === -1 ? csvText : csvText.substring(0, firstLineEnd);
   const commas = (firstLine.match(/,/g) || []).length;
   const semicolons = (firstLine.match(/;/g) || []).length;
   const separator = semicolons > commas ? ';' : ',';
   
   const results = [];
+  let currentRow = [];
+  let currentField = '';
+  let insideQuote = false;
   
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+    const nextChar = csvText[i + 1];
     
-    // Parse fields respecting quotes
-    const fields = [];
-    let insideQuote = false;
-    let currentField = '';
-    
-    for (let charIndex = 0; charIndex < line.length; charIndex++) {
-      const char = line[charIndex];
-      
-      if (char === '"') {
-        insideQuote = !insideQuote;
-      } else if (char === separator && !insideQuote) {
-        fields.push(currentField.trim().replace(/^"|"$/g, ''));
-        currentField = '';
+    if (char === '"') {
+      if (insideQuote && nextChar === '"') {
+        // Double quote inside quoted field -> escaped quote
+        currentField += '"';
+        i++; // skip next quote
       } else {
-        currentField += char;
+        // Toggle quote state
+        insideQuote = !insideQuote;
       }
+    } else if (char === separator && !insideQuote) {
+      currentRow.push(currentField.trim());
+      currentField = '';
+    } else if ((char === '\r' || char === '\n') && !insideQuote) {
+      // End of row
+      if (char === '\r' && nextChar === '\n') {
+        i++; // skip \n
+      }
+      currentRow.push(currentField.trim());
+      // Only add non-empty rows
+      if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+        results.push(currentRow);
+      }
+      currentRow = [];
+      currentField = '';
+    } else {
+      currentField += char;
     }
-    fields.push(currentField.trim().replace(/^"|"$/g, ''));
-    results.push(fields);
+  }
+  
+  // Push last field/row if any
+  if (currentField !== '' || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+      results.push(currentRow);
+    }
   }
   
   return results;
