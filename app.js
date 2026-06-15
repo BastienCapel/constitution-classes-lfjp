@@ -784,8 +784,8 @@ async function fetchStudents() {
           name: studentName,
           uniqueId: `${studentId}#${studentName}`,
           level: normalizedLevel,
-          payment: idxPayment !== -1 ? row[idxPayment].trim() : 'Payé',
-          status: idxStatus !== -1 ? row[idxStatus].trim() : 'Réinscrit'
+          payment: (idxPayment !== -1 && row[idxPayment]) ? row[idxPayment].trim() : 'Payé',
+          status: (idxStatus !== -1 && row[idxStatus]) ? row[idxStatus].trim() : 'Réinscrit'
         });
       } else {
         skippedCount++;
@@ -869,14 +869,14 @@ async function fetchExistingRequests() {
       // Parse requests
       state.requests = rows.slice(1).map(row => {
         return {
-          timestamp: idxTime !== -1 ? row[idxTime] : '',
-          type: idxType !== -1 ? row[idxType] : 'Regroupement',
-          niveau: idxLevel !== -1 ? row[idxLevel] : '',
-          ids: idxIds !== -1 ? row[idxIds] : '',
-          names: idxNames !== -1 ? row[idxNames] : '',
-          author: idxAuthor !== -1 ? row[idxAuthor] : '',
-          motif: idxMotif !== -1 ? row[idxMotif] : '',
-          status: idxStatus !== -1 ? row[idxStatus] : 'Actif'
+          timestamp: (idxTime !== -1 && row[idxTime]) ? row[idxTime].trim() : '',
+          type: (idxType !== -1 && row[idxType]) ? row[idxType].trim() : 'Regroupement',
+          niveau: (idxLevel !== -1 && row[idxLevel]) ? row[idxLevel].trim() : '',
+          ids: (idxIds !== -1 && row[idxIds]) ? row[idxIds].trim() : '',
+          names: (idxNames !== -1 && row[idxNames]) ? row[idxNames].trim() : '',
+          author: (idxAuthor !== -1 && row[idxAuthor]) ? row[idxAuthor].trim() : '',
+          motif: (idxMotif !== -1 && row[idxMotif]) ? row[idxMotif].trim() : '',
+          status: (idxStatus !== -1 && row[idxStatus]) ? row[idxStatus].trim() : 'Actif'
         };
       }).filter(req => req.timestamp); // keep only rows with timestamps
       
