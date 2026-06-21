@@ -1058,7 +1058,7 @@ function renderRequestsUI() {
       ? `<span style="font-size:0.8rem; color:var(--text-muted)">Annulé</span>`
       : `<button class="btn btn-danger btn-small cancel-req-btn" data-timestamp="${req.timestamp}">✕ Annuler</button>`;
       
-    const edtChecked = req.saisieEDT === 'true' || req.saisieEDT === true;
+    const edtChecked = String(req.saisieEDT).toLowerCase() === 'true';
     const edtCheckboxHTML = `
       <td class="admin-only" style="text-align: center;">
         <input type="checkbox" class="edt-checkbox" data-timestamp="${req.timestamp}" ${edtChecked ? 'checked' : ''} ${isCancelled ? 'disabled' : ''}>
