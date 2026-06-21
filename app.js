@@ -23,6 +23,13 @@ const APPS_SCRIPT_SOURCE_CODE = `function doGet(e) {
 }
 
 function doPost(e) {
+  // CORS configuration
+  var headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
+  };
+
   try {
     if (e.parameter && e.parameter.method === "OPTIONS") {
       return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
@@ -34,7 +41,17 @@ function doPost(e) {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
     
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["Horodatage", "Type", "Niveau", "ID Élèves", "Noms Élèves", "Auteur", "Motif", "Statut"]);
+      sheet.appendRow([
+        "Horodatage", 
+        "Type", 
+        "Niveau", 
+        "ID Élèves", 
+        "Noms Élèves", 
+        "Auteur", 
+        "Motif", 
+        "Statut",
+        "Saisie EDT"
+      ]);
     }
     
     var action = data.action || "add";
@@ -52,7 +69,8 @@ function doPost(e) {
         data.names,
         data.author,
         data.motif || "",
-        "Actif"
+        "Actif",
+        false
       ]);
       return ContentService.createTextOutput(JSON.stringify({ 
         status: "success", 
@@ -64,7 +82,7 @@ function doPost(e) {
       var targetTimestamp = data.timestamp;
       if (!targetTimestamp) throw new Error("Horodatage manquant.");
       var lastRow = sheet.getLastRow();
-      var range = sheet.getRange(2, 1, lastRow - 1, 8);
+      var range = sheet.getRange(2, 1, lastRow - 1, 9);
       var values = range.getValues();
       var found = false;
       
@@ -79,6 +97,34 @@ function doPost(e) {
         
         if (isMatch) {
           sheet.deleteRow(i + 2);
+          found = true;
+          break;
+        }
+      }
+      if (!found) throw new Error("Demande introuvable.");
+      return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+        .setMimeType(ContentService.MimeType.JSON);
+        
+    } else if (action === "updateEDT") {
+      var targetTimestamp = data.timestamp;
+      var edtValue = data.saisieEDT;
+      if (!targetTimestamp) throw new Error("Horodatage manquant.");
+      var lastRow = sheet.getLastRow();
+      var range = sheet.getRange(2, 1, lastRow - 1, 9);
+      var values = range.getValues();
+      var found = false;
+      
+      for (var i = 0; i < values.length; i++) {
+        var rowTimestamp = values[i][0];
+        var isMatch = false;
+        if (rowTimestamp instanceof Date) {
+          isMatch = rowTimestamp.toISOString() === targetTimestamp;
+        } else {
+          isMatch = String(rowTimestamp) === targetTimestamp;
+        }
+        
+        if (isMatch) {
+          sheet.getRange(i + 2, 9).setValue(edtValue);
           found = true;
           break;
         }
@@ -882,6 +928,7 @@ async function fetchExistingRequests() {
       const idxAuthor = getColIndex("Auteur");
       const idxMotif = getColIndex("Motif");
       const idxStatus = getColIndex("Statut");
+      const idxSaisieEDT = getColIndex("Saisie EDT");
       
       // Parse requests
       state.requests = rows.slice(1).map(row => {
@@ -893,7 +940,8 @@ async function fetchExistingRequests() {
           names: (idxNames !== -1 && row[idxNames]) ? row[idxNames].trim() : '',
           author: (idxAuthor !== -1 && row[idxAuthor]) ? row[idxAuthor].trim() : '',
           motif: (idxMotif !== -1 && row[idxMotif]) ? row[idxMotif].trim() : '',
-          status: (idxStatus !== -1 && row[idxStatus]) ? row[idxStatus].trim() : 'Actif'
+          status: (idxStatus !== -1 && row[idxStatus]) ? row[idxStatus].trim() : 'Actif',
+          saisieEDT: (idxSaisieEDT !== -1 && row[idxSaisieEDT]) ? row[idxSaisieEDT].trim() : ''
         };
       }).filter(req => req.timestamp); // keep only rows with timestamps
       
@@ -1010,6 +1058,13 @@ function renderRequestsUI() {
       ? `<span style="font-size:0.8rem; color:var(--text-muted)">Annulé</span>`
       : `<button class="btn btn-danger btn-small cancel-req-btn" data-timestamp="${req.timestamp}">✕ Annuler</button>`;
       
+    const edtChecked = req.saisieEDT === 'true' || req.saisieEDT === true;
+    const edtCheckboxHTML = `
+      <td class="admin-only" style="text-align: center;">
+        <input type="checkbox" class="edt-checkbox" data-timestamp="${req.timestamp}" ${edtChecked ? 'checked' : ''} ${isCancelled ? 'disabled' : ''}>
+      </td>
+    `;
+      
     row.innerHTML = `
       <td><span style="font-size: 0.8rem; white-space: nowrap;">${formattedDate}</span></td>
       <td><span class="badge ${typeBadgeClass}">${req.type}</span></td>
@@ -1018,6 +1073,7 @@ function renderRequestsUI() {
       <td><strong>${req.author}</strong></td>
       <td><div style="max-width: 250px; font-size:0.82rem; line-height: 1.4;">${req.motif}</div></td>
       <td><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
+      ${edtCheckboxHTML}
       <td class="col-action">${cancelActionHTML}</td>
     `;
     
@@ -1028,6 +1084,14 @@ function renderRequestsUI() {
         if (confirm(`Voulez-vous vraiment annuler cette demande de ${req.type} faite par ${req.author} ?`)) {
           cancelRequest(req.timestamp);
         }
+      });
+    }
+    
+    // Bind EDT checkbox change handler
+    const edtCheckbox = row.querySelector('.edt-checkbox');
+    if (edtCheckbox) {
+      edtCheckbox.addEventListener('change', (e) => {
+        updateEdtStatus(req.timestamp, e.target.checked);
       });
     }
     
@@ -1144,6 +1208,53 @@ async function cancelRequest(timestamp) {
   } catch (err) {
     console.error(err);
     showToast(`Erreur d'annulation : ${err.message}`, "error");
+  }
+}
+
+/**
+ * POST an EDT status update using Google Apps Script Web App
+ */
+async function updateEdtStatus(timestamp, isChecked) {
+  if (!state.settings.scriptUrl) {
+    showToast("URL de script non configurée.", "error");
+    return;
+  }
+  
+  showToast("Mise à jour EDT...", "info");
+  
+  const payload = {
+    action: 'updateEDT',
+    timestamp: timestamp,
+    saisieEDT: isChecked
+  };
+  
+  try {
+    const response = await fetch(state.settings.scriptUrl, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      showToast("Statut EDT mis à jour avec succès.", "success");
+      // Update local state to maintain correct checkbox state without reloading from CSV (lag)
+      const request = state.requests.find(r => r.timestamp === timestamp);
+      if (request) {
+        request.saisieEDT = isChecked ? 'true' : 'false';
+      }
+    } else {
+      throw new Error(result.message || "Erreur lors de la mise à jour EDT.");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast(`Erreur de mise à jour EDT : ${err.message}`, "error");
+    // Revert checkbox state by rendering the requests list again
+    renderRequestsUI();
   }
 }
 

@@ -42,7 +42,8 @@ function doPost(e) {
         "Noms Élèves", 
         "Auteur", 
         "Motif", 
-        "Statut"
+        "Statut",
+        "Saisie EDT"
       ]);
     }
     
@@ -65,7 +66,8 @@ function doPost(e) {
         data.names,     // Noms séparés par des ";" (ex: "ABOUDOU-SARR Eiden; AMADOU-SALL Moussa")
         data.author,    // Initiales/Nom de l'auteur
         data.motif || "",// Explications
-        "Actif"         // Statut de la demande
+        "Actif",         // Statut de la demande
+        false           // Saisie EDT par défaut
       ]);
       
       return ContentService.createTextOutput(JSON.stringify({ 
@@ -83,7 +85,7 @@ function doPost(e) {
       }
       
       var lastRow = sheet.getLastRow();
-      var range = sheet.getRange(2, 1, lastRow - 1, 8); // Colonnes 1 à 8 (de A à H)
+      var range = sheet.getRange(2, 1, lastRow - 1, 9); // Colonnes 1 à 9 (de A à I)
       var values = range.getValues();
       var found = false;
       
@@ -114,6 +116,45 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ 
         status: "success", 
         message: "Demande annulée avec succès !" 
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+    } else if (action === "updateEDT") {
+      var targetTimestamp = data.timestamp;
+      var edtValue = data.saisieEDT; // true ou false
+      if (!targetTimestamp) {
+        throw new Error("Horodatage cible manquant pour la mise à jour.");
+      }
+      
+      var lastRow = sheet.getLastRow();
+      var range = sheet.getRange(2, 1, lastRow - 1, 9); // Colonnes 1 à 9
+      var values = range.getValues();
+      var found = false;
+      
+      for (var i = 0; i < values.length; i++) {
+        var rowTimestamp = values[i][0];
+        var isMatch = false;
+        if (rowTimestamp instanceof Date) {
+          isMatch = rowTimestamp.toISOString() === targetTimestamp;
+        } else {
+          isMatch = String(rowTimestamp) === targetTimestamp;
+        }
+        
+        if (isMatch) {
+          // Mettre à jour la colonne Saisie EDT (colonne 9 / I)
+          sheet.getRange(i + 2, 9).setValue(edtValue);
+          found = true;
+          break;
+        }
+      }
+      
+      if (!found) {
+        throw new Error("Demande introuvable avec l'horodatage : " + targetTimestamp);
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: "success", 
+        message: "Saisie EDT mise à jour !" 
       }))
       .setMimeType(ContentService.MimeType.JSON);
       
