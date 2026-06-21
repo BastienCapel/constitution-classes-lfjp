@@ -928,7 +928,10 @@ async function fetchExistingRequests() {
       const idxAuthor = getColIndex("Auteur");
       const idxMotif = getColIndex("Motif");
       const idxStatus = getColIndex("Statut");
-      const idxSaisieEDT = getColIndex("Saisie EDT");
+      let idxSaisieEDT = getColIndex("Saisie EDT");
+      if (idxSaisieEDT === -1 && headers.length >= 9) {
+        idxSaisieEDT = 8; // Fallback to 9th column if the header is empty/unnamed
+      }
       
       // Parse requests
       state.requests = rows.slice(1).map(row => {
