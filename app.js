@@ -479,6 +479,8 @@ const Storage = {
       state.students.forEach(s => {
         if (!s.uniqueId) s.uniqueId = `${s.id}#${s.name}`;
       });
+      // Trier par ordre alphabétique
+      state.students.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
     } catch (e) {
       console.error('Error loading students from LocalStorage', e);
       state.students = [];
@@ -859,6 +861,9 @@ async function fetchStudents() {
       throw new Error("Aucun élève du secondaire (6ème à Terminale) n'a été trouvé dans cet onglet.");
     }
     
+    // Trier par ordre alphabétique
+    importedStudents.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+
     // Save state
     state.students = importedStudents;
     Storage.saveStudents();
